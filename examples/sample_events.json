@@ -1,0 +1,75 @@
+from __future__ import annotations
+
+import random
+from typing import Any, Dict, List
+
+
+def generate_sample_events(count: int = 150, seed: int = 42) -> List[Dict[str, Any]]:
+    """Generate synthetic Windows ransomware-like telemetry for demo purposes."""
+    rng = random.Random(seed)
+    events: List[Dict[str, Any]] = []
+
+    suspicious_extensions = [".locked", ".encrypted", ".crypt", ".ransom", ".id_"]
+    suspicious_paths = [
+        "C:/Users/Admin/Desktop/report.pdf.locked",
+        "C:/Users/Admin/Documents/invoice.xlsx.crypt",
+        "C:/Users/Admin/Pictures/photo.jpg.ransom",
+        "C:/Users/Admin/Videos/backup.mp4.encrypted",
+    ]
+
+    # Benign baseline events
+    for i in range(max(20, count // 3)):
+        events.append({
+            "type": "file",
+            "path": f"C:/Users/Admin/Documents/file_{i}.txt",
+            "timestamp": float(i),
+            "action": "write",
+        })
+
+    # Suspicious burst
+    for i in range(count // 3):
+        ext = suspicious_extensions[rng.randrange(0, len(suspicious_extensions))]
+        path = suspicious_paths[rng.randrange(0, len(suspicious_paths))]
+        path = path.replace(".locked", ext) if ".locked" in path else path
+        path = path.replace(".crypt", ext) if ".crypt" in path else path
+        path = path.replace(".ransom", ext) if ".ransom" in path else path
+        path = path.replace(".encrypted", ext) if ".encrypted" in path else path
+        events.append({
+            "type": "file",
+            "path": path,
+            "timestamp": float(50 + i * 0.8 + rng.random()),
+            "action": "encrypt",
+        })
+
+    # Suspicious commands
+    for i in range(count // 6):
+        command = rng.choice([
+            "powershell -nop -w hidden -enc ...",
+            "cmd /c vssadmin delete shadows /all /quiet",
+            "certutil -decode file.txt hidden.txt",
+            "wbadmin delete catalog -quiet",
+        ])
+        events.append({
+            "type": "process",
+            "command": command,
+            "timestamp": float(60 + i * 0.7),
+            "name": "execution",
+        })
+
+    # Persistence / registry activity
+    for i in range(count // 10):
+        events.append({
+            "type": "registry",
+            "key": "HKLM\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\ransomware_loader",
+            "timestamp": float(70 + i * 0.9),
+            "path": "run_key",
+        })
+
+    # Ransom note created
+    events.append({
+        "type": "note",
+        "content": "Your files have been encrypted. Pay bitcoin to recover them.",
+        "timestamp": float(100.0),
+    })
+
+    return sorted(events, key=lambda item: item.get("timestamp", 0))
